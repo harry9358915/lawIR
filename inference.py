@@ -22,7 +22,7 @@ def test(args, model, test_loader, device):
                                        test_batch['doc_idx'].to(device), test_batch['doc_mask'].to(device))
             if args.task == 'classification':
                 batch_score = batch_score.softmax(dim=-1)[:, 1].squeeze(-1)
-            batch_score = batch_score.detach().cpu().tolist()
+            batch_score = [batch_score.detach().cpu().tolist()]
             print(doc_id)
             print(query_id)
             print(batch_score)

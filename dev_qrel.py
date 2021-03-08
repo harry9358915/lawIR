@@ -1,7 +1,7 @@
 import json
 import os
-json_array = json.load(open("task1_train_2020_labels.json"))
-subdirs = os.listdir("task1_clean_train_2020")
+json_array = json.load(open("task1_test_2020_labels.json"))
+subdirs = os.listdir("task1_clean_test_2020")
 out = open("dev_id.txt"+'.tmp', 'w')
 answers={}
 with open("dev_id.txt","r") as file:

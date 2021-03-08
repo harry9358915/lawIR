@@ -12,6 +12,7 @@ from longformerdataset import longformerMaxpDataset
 from BertMaxP import BertMaxP
 from dataloader import DataLoader
 from Longformer import LongformerMaxp
+
 def dev(args, model, dev_loader, device):
     rst_dict = {}
     for dev_batch in dev_loader:
@@ -36,8 +37,6 @@ def dev(args, model, dev_loader, device):
     return rst_dict
 
 def train(args, model, loss_fn, m_optim, m_scheduler, train_loader, dev_loader, device):
-    if args.model == 'longformer':
-        scaler = torch.cuda.amp.GradScaler()
     best_F1 = 0.0
     for epoch in range(args.epoch):
         avg_loss = 0.0
@@ -52,14 +51,13 @@ def train(args, model, loss_fn, m_optim, m_scheduler, train_loader, dev_loader, 
                 else:
                     raise ValueError('Task must be `ranking` or `classification`.')
             elif args.model == 'longformer':
-                with torch.cuda.amp.autocast():
-                    if args.task == 'ranking':
-                        batch_score_pos, _ = model(train_batch['input_ids_pos'].to(device), train_batch['input_mask_pos'].to(device), train_batch['segment_ids_pos'].to(device))
-                        batch_score_neg, _ = model(train_batch['input_ids_neg'].to(device), train_batch['input_mask_neg'].to(device), train_batch['segment_ids_neg'].to(device))
-                    elif args.task == 'classification':
-                        batch_score, _ = model(train_batch['input_ids'].to(device), train_batch['input_mask'].to(device), train_batch['segment_ids'].to(device), train_batch['global_attention_mask'].to(device))
-                    else:
-                        raise ValueError('Task must be `ranking` or `classification`.')
+                if args.task == 'ranking':
+                    batch_score_pos, _ = model(train_batch['input_ids_pos'].to(device), train_batch['input_mask_pos'].to(device), train_batch['segment_ids_pos'].to(device))
+                    batch_score_neg, _ = model(train_batch['input_ids_neg'].to(device), train_batch['input_mask_neg'].to(device), train_batch['segment_ids_neg'].to(device))
+                elif args.task == 'classification':
+                    batch_score, _ = model(train_batch['input_ids'].to(device), train_batch['input_mask'].to(device), train_batch['segment_ids'].to(device), train_batch['global_attention_mask'].to(device))
+                else:
+                    raise ValueError('Task must be `ranking` or `classification`.')
             else:
                 if args.task == 'ranking':
                     batch_score_pos, _ = model(train_batch['query_idx'].to(device), train_batch['query_mask'].to(device),
@@ -79,20 +77,14 @@ def train(args, model, loss_fn, m_optim, m_scheduler, train_loader, dev_loader, 
                 raise ValueError('Task must be `ranking` or `classification`.')
             if torch.cuda.device_count() > 1:
                 batch_loss = batch_loss.mean()
-                
-            if args.model == 'longformer':
-                avg_loss += batch_loss.item()
-                scaler.scale(batch_loss).backward()
-                scaler.step(m_optim)
-                m_scheduler.step()
-                scaler.update()
-                m_optim.zero_grad()
-            else:
-                avg_loss += batch_loss.item()
-                batch_loss.backward()
+
+            avg_loss += batch_loss.item()
+            batch_loss = batch_loss / args.accumulation_steps
+            batch_loss.backward()
+            if (step+1) % args.accumulation_steps == 0:
                 m_optim.step()
                 m_scheduler.step()
-                m_optim.zero_grad()                
+                m_optim.zero_grad()    
             
             if (step+1) % args.eval_every == 0:
                 with torch.no_grad():
@@ -113,23 +105,18 @@ def train(args, model, loss_fn, m_optim, m_scheduler, train_loader, dev_loader, 
                             else:
                                 if value[1][1] == '1':
                                     FN +=1    
-                            writer.write(q_id+' '+str(value[0])+' '+str(rank+1)+' '+ str(value[1][0])+' bertmaxp\n')
+                            writer.write(q_id+' '+str(value[0])+' '+str(rank+1)+' '+ str(value[1][0])+' '+str(args.model)+'\n')
                 print(TP,FP,FN)
                 Precision = TP/(TP+FP)
                 Recall = TP/(TP+FN)
-                with open("result.tmp","w") as writer:
-                    writer.write(str(Precision)+' '+str(Recall)+'\n')
                 if Precision==0 and Recall==0:
                     print("ZERO")
                 else:
                     F1score = 2*Precision/(Precision+Recall)
+                with open("result.tmp","a") as writer:
+                    writer.write(str(Precision)+' '+str(Recall)+' '+str(F1score)+' '+str(best_F1)+'\n')
                 print('save_model...')
-                if F1score>best_F1:
-                    best_F1 = F1score
-                    if torch.cuda.device_count() > 1:
-                        torch.save(model.module.state_dict(), args.save)
-                    else:
-                        torch.save(model.state_dict(), args.save)           
+                torch.save(model.state_dict(), args.save+str(epoch)+str(step))           
                 avg_loss = 0.0
             
 
@@ -160,6 +147,7 @@ def main():
     parser.add_argument('-lr', type=float, default=2e-5)
     parser.add_argument('-tau', type=float, default=1)
     parser.add_argument('-n_warmup_steps', type=int, default=1000)
+    parser.add_argument('-accumulation_steps', type=int, default=8)
     parser.add_argument('-eval_every', type=int, default=1000)
     args = parser.parse_args()
 
