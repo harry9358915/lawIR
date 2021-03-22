@@ -28,7 +28,7 @@ def dev(args, model, dev_loader, device):
             if args.task == 'classification':
                 ##對[batch_size,2]做softmax取[:,1]label的機率
                 batch_score = batch_score.softmax(dim=-1)[:, 1].squeeze(-1)
-            batch_score = [batch_score.detach().cpu().tolist()]
+            batch_score = batch_score.detach().cpu().tolist()
             for (q_id, d_id, b_s, l) in zip(query_id, doc_id, batch_score, label):
                 if q_id not in rst_dict:
                     rst_dict[q_id] = {}
@@ -84,9 +84,10 @@ def train(args, model, loss_fn, m_optim, m_scheduler, train_loader, dev_loader, 
             if (step+1) % args.accumulation_steps == 0:
                 m_optim.step()
                 m_scheduler.step()
-                m_optim.zero_grad()    
-            
-            if (step+1) % args.eval_every == 0:
+                m_optim.zero_grad()                   
+            if (step+1) % args.eval_every == 0:                
+                print('save_model...')
+                torch.save(model.state_dict(), args.save+str(epoch)+str(step)+'.bin') 
                 with torch.no_grad():
                     rst_dict = dev(args, model, dev_loader, device)
                 with open("dev_result.tmp", 'w') as writer:
@@ -112,11 +113,9 @@ def train(args, model, loss_fn, m_optim, m_scheduler, train_loader, dev_loader, 
                 if Precision==0 and Recall==0:
                     print("ZERO")
                 else:
-                    F1score = 2*Precision/(Precision+Recall)
+                    F1score = 2*(Precision*Recall)/(Precision+Recall)
                 with open("result.tmp","a") as writer:
-                    writer.write(str(Precision)+' '+str(Recall)+' '+str(F1score)+' '+str(best_F1)+'\n')
-                print('save_model...')
-                torch.save(model.state_dict(), args.save+str(epoch)+str(step))           
+                    writer.write(str(Precision)+' '+str(Recall)+' '+str(F1score)+' '+str(best_F1)+'\n')          
                 avg_loss = 0.0
             
 
