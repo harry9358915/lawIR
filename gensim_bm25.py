@@ -12,14 +12,13 @@ from nltk.corpus import stopwords
 from gensim.summarization.bm25 import get_bm25_weights
 import pathlib
 
-
 lemma = WordNetLemmatizer()
 stop_words = set(stopwords.words('english'))
 dict_words = set(nltk.corpus.words.words())
 
-subdirs = os.listdir("task1_clean_dev_2020")
-root_path = "task1_clean_dev_2020/"
-save_file_name = "dev_id.txt"
+subdirs = os.listdir("task1_clean_train_2020")
+root_path = "task1_clean_train_2020/"
+save_file_name = "train_bm25_id_rank.txt"
 #all_letters = string.ascii_letters + " .,;'"
 
 def unicodeToAscii(s):

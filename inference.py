@@ -22,10 +22,7 @@ def test(args, model, test_loader, device):
                                        test_batch['doc_idx'].to(device), test_batch['doc_mask'].to(device))
             if args.task == 'classification':
                 batch_score = batch_score.softmax(dim=-1)[:, 1].squeeze(-1)
-            batch_score = [batch_score.detach().cpu().tolist()]
-            print(doc_id)
-            print(query_id)
-            print(batch_score)
+            batch_score = batch_score.detach().cpu().tolist()
             for (q_id, d_id, b_s) in zip(query_id, doc_id, batch_score):
                 if q_id not in rst_dict:
                     rst_dict[q_id] = {}
@@ -162,6 +159,7 @@ def main():
     if args.model == 'bert':
         st = {}
         for k in state_dict:
+            print(k)
             if k.startswith('bert'):
                 st['_model'+k[len('bert'):]] = state_dict[k]
             elif k.startswith('classifier'):
@@ -169,6 +167,19 @@ def main():
             else:
                 st[k] = state_dict[k]
         model.load_state_dict(st)
+    elif args.model == 'longformer':
+        st = {}
+        for k in state_dict:
+            print(k)
+            '''
+            if k.startswith('bert'):
+                st['_model'+k[len('bert'):]] = state_dict[k]
+            elif k.startswith('classifier'):
+                st['_dense'+k[len('classifier'):]] = state_dict[k]
+            else:
+                st[k] = state_dict[k]
+            '''
+        model.load_state_dict(state_dict)
     else:
         model.load_state_dict(state_dict)
 
@@ -185,7 +196,7 @@ def main():
         FP=0
         FN=0
         for q_id, scores in rst_dict.items():
-            res = sorted(scores.items(), reverse=True)
+            res = sorted(scores.items(), key=lambda x: x[1], reverse=True)
             for rank, value in enumerate(res): 
                 writer.write(q_id+' '+str(value[0])+' '+str(rank+1)+' '+ str(value[1])+' bertmaxp\n')
 

@@ -107,14 +107,14 @@ class longformerMaxpDataset(Dataset):
                     for line in file.readlines():
                         context.append(line.rstrip())
                     context = ' '.join([i for i in context])
-                    self._queries[task_id] = line
+                    self._queries[task_id] = context
                 for candidatesfile in candidates_list:
                     with open(testdataset+"/"+ task_id+ '/candidates/' + candidatesfile, mode="r", encoding="utf-8") as file:
                         context=[]
                         for line in file.readlines():
                             context.append(line.rstrip())
                         context = ' '.join([i for i in context])
-                        self._docs[task_id+os.path.splitext(candidatesfile)[0]] = line
+                        self._docs[task_id+os.path.splitext(candidatesfile)[0]] = context
             with open(test_id,'r') as file:
                 self._examples = []
                 for i,line in enumerate(file):
@@ -123,6 +123,10 @@ class longformerMaxpDataset(Dataset):
                     line = line.strip().split("\t")
                     line[1] = "{:0>3d}".format(int(line[1]))
                     line[1] = line[0]+line[1]
+                    
+                    if (i%100)>=25:
+                        continue
+                    
                     self._examples.append({'query_id': line[0], 'doc_id': line[1], 'retrieval_score': float(line[2])})
         self._count = len(self._examples)
 

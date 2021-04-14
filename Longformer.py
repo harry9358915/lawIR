@@ -21,7 +21,6 @@ class LongformerMaxp(nn.Module):
         self._max_doc_len = max_doc_len
         self._mode = mode
         self._task = task
-        self._tokenizer = LongformerTokenizer.from_pretrained('allenai/longformer-base-4096')
         self._config = LongformerConfig.from_pretrained(self._pretrained)
         self._config.attention_mode = 'sliding_chunks'
         self._config.gradient_checkpointing = 'True'
@@ -54,6 +53,5 @@ class LongformerMaxp(nn.Module):
         logits = self.out_proj(hidden_states)
         print("logits: "+str(logits))
         score = logits.view(-1,2)
-        print("score: "+str(score))
         #logits = self._activation(self._dense1(logits.view(num,4,-1).max(dim=1)[0]))
         return score, logits

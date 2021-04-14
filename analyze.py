@@ -3,17 +3,17 @@ import os
 import sys
 import argparse
 import json
-
+from collections import defaultdict
 
 if __name__ == "__main__":
+    queries = defaultdict(list)
     answers = {}
-    queries = {}
     confusion_TP=0
     confusion_P=0
     confusion_precision=0
     parser = argparse.ArgumentParser()
     parser.add_argument("--label", type=str,default="task1_test_2020_labels.json",help="label")
-    parser.add_argument("--submission", type=str,default="submission.txt",help="submission")
+    parser.add_argument("--submission", type=str,default="test_result.tmp",help="submission")
     args = parser.parse_args()
     json_array = json.load(open(args.label))
     for item in json_array:
@@ -25,20 +25,26 @@ if __name__ == "__main__":
             queryid=line.split(',')[0]
             queries[queryid]=query
         '''
-        query=[]
         for line in file.readlines():
             line = line.rstrip().split()
-            query.append(int(line[1]))
-            if len(query) == 10:
-                queries[line[0]] = query
-                query=[]
+            if float(line[3])>=0.4:
+                queries[line[0]].append(int(line[1][3:]))
+
+    confusion_FP=0
+    confusion_TP=0
+    confusion_FN=0
     for answers_key, answers_val in answers.items():
         queries_val=queries[answers_key]
-        for item in answers_val:
-            if item in queries_val:
+        for item in queries_val:
+            if item in answers_val:
                 confusion_TP = confusion_TP + 1
-        confusion_precision  = confusion_precision + len(queries_val)
-        confusion_P = confusion_P + len(answers_val)
-    
-    print("Precision: ",confusion_TP/confusion_precision)
-    print("Recall: ",confusion_TP/confusion_P)
+                answers_val.remove(item)
+            else:
+                confusion_FP = confusion_FP + 1
+        confusion_FN = confusion_FN + len(answers_val)
+    Precision = confusion_TP/(confusion_TP+confusion_FP)
+    Recall = confusion_TP/(confusion_TP+confusion_FN)
+    F1score = 2*(Precision*Recall)/(Precision+Recall)
+    print("Precision: ", Precision)
+    print("Recall: ", Recall)
+    print("F1-score: ", F1score)
