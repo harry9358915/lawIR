@@ -6,3 +6,5 @@ task1_clean_train_bert_2020
 task1_clean_test_bert_2020
 task1_train_2020
 task1_test_2020
+longformer-base-4096
+checkpoints
